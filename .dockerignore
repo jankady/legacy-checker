@@ -1,0 +1,9 @@
+.git
+.github
+.trowel
+bin
+dist
+docs
+examples
+*.md
+*.db

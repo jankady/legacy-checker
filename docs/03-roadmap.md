@@ -30,7 +30,7 @@ estimate made before any code exists.
 | # | Step | Phase | Status |
 |---|---|---|---|
 | 0 | Research, scope, architecture, roadmap, independent review | Plan | Done |
-| 1 | Repository scaffold, CI, Dockerfile | A Foundations | Next |
+| 1 | Repository scaffold, CI, Dockerfile | A Foundations | In progress: built and checked locally; waiting for the first CI run and the name decision |
 | 2 | Demo application "legacy-shop" | A | |
 | 3 | Competitor bench and go/no-go | A | |
 | 4 | Capture store | B Capture | |
@@ -80,8 +80,8 @@ Milestones:
 ### Step 1 — Repository scaffold, CI, Dockerfile
 
 - **Goal:** an empty but real project that builds, tests and ships an image on every push.
-- **Build:** name conflict check and final name applied; Go module; `cmd/trowel` with cobra
-  root, `version`, config loading from `trowel.yaml`; package skeleton; Makefile; lint
+- **Build:** name conflict check and final name applied; Go module; `cmd/trowel` with a
+  command dispatcher, `version`, config loading from `trowel.yaml`; package skeleton; Makefile; lint
   configuration; Dockerfile (base with `/bin/sh`); GitHub Actions: build, lint, unit tests
   on Linux, macOS and Windows, image build, `CGO_ENABLED=0`; dependency versions pinned
   with the date checked; CONTRIBUTING, SECURITY.md, no-telemetry statement.

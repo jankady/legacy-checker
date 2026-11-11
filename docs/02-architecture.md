@@ -334,11 +334,11 @@ for selected steps.
 | Concern | Choice | Reason |
 |---|---|---|
 | Language | Go, current stable release | Single static binary, strong networking library, protocol libraries exist |
-| CLI | `spf13/cobra` | De facto standard |
+| CLI | Standard library `flag` with a small dispatcher | Shortest possible dependency list (decision D28) |
 | PostgreSQL protocol | `jackc/pgx/v5` (`pgproto3` for decoding, `pgconn` for the admin connection) | Decodes both directions; used in production by a major driver |
 | Store | SQLite via `modernc.org/sqlite` | Appendable, joins for correlation, no CGO |
 | SQL analysis | Decided in step 13 between `DataDog/go-sqllexer` and `wasilibs/go-pgquery` | See 2.6 |
-| YAML | `gopkg.in/yaml.v3` | Output ordering under our control |
+| YAML | `goccy/go-yaml` | No dependencies; errors with line and column (decision D29) |
 | Line diff | A small pure-Go unified diff library, pinned in step 21 | Console and report diffs |
 | JUnit output | Jenkins-compatible JUnit XML, validated in CI against a checked-in XSD | Read by every common CI system |
 | Tests | Go `testing`, golden files, `testcontainers-go` for PostgreSQL | Real database in tests, like the product itself |
@@ -357,7 +357,9 @@ All dependencies are MIT, BSD or Apache-2.0. Reference implementations under oth
 
 ```
 cmd/trowel/              main package
-internal/cli/            cobra commands, config loading
+internal/cli/            command dispatch, global flags, help, exit codes
+internal/config/         trowel.yaml loading, environment overrides, validation
+internal/buildinfo/      version, commit and platform of the running binary
 internal/store/          SQLite schema, migrations, single writer
 internal/httprec/        recording reverse proxy, serial gate
 internal/dbtap/          protocol-neutral tap interface, relay, queue, pause

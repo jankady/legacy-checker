@@ -5,8 +5,8 @@
 > and writes, and replay tests against the real database that fail when it ends up
 > different. No SDK, no agent, no code change.
 
-**Status: planning.** No code yet. The project is built in small, strictly sequential
-steps; see the roadmap.
+**Status: step 1 of 35.** The repository scaffold exists; the tool does not record anything
+yet. The project is built in small, strictly sequential steps; see the roadmap.
 
 ## Why
 
@@ -58,8 +58,19 @@ browser / script ──▶ HTTP recorder ──▶ your app ──▶ DB tap ─
 | [docs/02-architecture.md](docs/02-architecture.md) | Components, technologies, data model, repository layout |
 | [docs/03-roadmap.md](docs/03-roadmap.md) | 35 sequential steps with a definition of done each |
 | [docs/04-decisions.md](docs/04-decisions.md) | Decision log with the reasoning behind each choice |
+| [docs/dependencies.md](docs/dependencies.md) | Dependencies and toolchain versions, in use and planned |
 | [docs/research/](docs/research/) | Research reports the plan is based on |
 | [docs/reviews/](docs/reviews/) | Independent technical and product reviews of the first draft of the plan |
+
+## Development
+
+```
+make build     # bin/trowel
+make check     # lint, tests, tidy go.mod
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how work is organised and
+[SECURITY.md](SECURITY.md) for how recordings are handled and how to report a problem.
 
 ## Licence
 
