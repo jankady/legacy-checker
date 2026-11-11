@@ -1,19 +1,30 @@
 # Trowel (working name)
 
-> Put it in front of the web app you inherited. It watches the HTTP requests and the SQL they
-> cause, then gives you a map of what every endpoint reads and writes, and golden-master tests
-> that fail when the database ends up different. No code changes to the app.
+> Put Trowel between the web app you inherited and its PostgreSQL database. Click through a
+> feature once and you get a committed map of which tables each endpoint you touched reads
+> and writes, and replay tests against the real database that fail when it ends up
+> different. No SDK, no agent, no code change.
 
-**Status: planning.** No code yet. The project is built in small, strictly sequential steps;
-see the roadmap.
+**Status: planning.** No code yet. The project is built in small, strictly sequential
+steps; see the roadmap.
 
 ## Why
 
-Teams that inherit an undocumented system face two questions before they can change anything:
-*what does it actually do?* and *how do I know I did not break it?* Existing record-and-replay
-tools answer the second question only, and they do it by mocking the database away. Trowel
-keeps the real database in the loop and treats the understanding of the system as a product
-of its own.
+Teams that inherit an undocumented system face two questions before they can change
+anything: *what does it actually do?* and *how do I know I did not break it?* Existing
+record-and-replay tools concentrate on the second question, and most of them answer it by
+mocking the database away. Trowel keeps the real database in the loop and treats the
+understanding of the system as a product of its own.
+
+## Limits you should know first
+
+- PostgreSQL only, version 13 or newer. MySQL is planned after the first two releases.
+- Runs against a non-production copy of the app; requests are processed one at a time.
+- The connection between app and database must be plain TCP while Trowel is in between.
+- Replay sends real requests and resets the database; it needs an admin role that owns it.
+- The map lists what was observed, not everything the app can do.
+
+The full list is in [docs/01-mvp-scope.md](docs/01-mvp-scope.md), section 8.
 
 ## How it works
 
@@ -28,26 +39,28 @@ browser / script ──▶ HTTP recorder ──▶ your app ──▶ DB tap ─
        (Markdown + JSON)        golden masters             against the real app
 ```
 
-Planned commands for the MVP:
-
-| Command | Purpose |
-|---|---|
-| `trowel record` | Proxy HTTP and PostgreSQL traffic, store correlated recordings |
-| `trowel map` | Generate the behaviour map: endpoints, tables read and written, findings |
-| `trowel generate` | Turn a recording into replayable flow tests |
-| `trowel calibrate` | Replay twice to detect unstable fields and write them down as rules |
-| `trowel replay` | Reset the database, replay flows, assert on responses and database writes |
+| Command | Release | Purpose |
+|---|---|---|
+| `trowel init` | 0.1 | Write a starter config and Compose override |
+| `trowel record` | 0.1 | Proxy HTTP and PostgreSQL traffic, store correlated recordings |
+| `trowel inspect` | 0.1 | Look into a recording, redacted |
+| `trowel map` | 0.1 | Generate the behaviour map: endpoints, tables read and written, findings |
+| `trowel snapshot` | 0.2 | Manage named database snapshots |
+| `trowel generate` | 0.2 | Turn a recording into a replayable flow test |
+| `trowel calibrate` | 0.2 | Replay twice to detect unstable fields and write them down as rules |
+| `trowel replay` | 0.2 | Reset the database, replay flows, assert on responses and database state |
 
 ## Documents
 
 | Document | Content |
 |---|---|
-| [docs/01-mvp-scope.md](docs/01-mvp-scope.md) | What the MVP is, what it is not, and when it counts as done |
+| [docs/01-mvp-scope.md](docs/01-mvp-scope.md) | What the MVP is, what it is not, when it counts as done, and why it may not work |
 | [docs/02-architecture.md](docs/02-architecture.md) | Components, technologies, data model, repository layout |
-| [docs/03-roadmap.md](docs/03-roadmap.md) | The step-by-step plan with a definition of done per step |
+| [docs/03-roadmap.md](docs/03-roadmap.md) | 35 sequential steps with a definition of done each |
 | [docs/04-decisions.md](docs/04-decisions.md) | Decision log with the reasoning behind each choice |
 | [docs/research/](docs/research/) | Research reports the plan is based on |
+| [docs/reviews/](docs/reviews/) | Independent technical and product reviews of the first draft of the plan |
 
 ## Licence
 
-Apache-2.0. The core described in the MVP scope is and stays open source.
+Apache-2.0. Everything in the MVP scope is and stays open source. Trowel sends no telemetry.
