@@ -30,8 +30,8 @@ estimate made before any code exists.
 | # | Step | Phase | Status |
 |---|---|---|---|
 | 0 | Research, scope, architecture, roadmap, independent review | Plan | Done |
-| 1 | Repository scaffold, CI, Dockerfile | A Foundations | In progress: built and checked locally; waiting for the first CI run and the name decision |
-| 2 | Demo application "legacy-shop" | A | |
+| 1 | Repository scaffold, CI, Dockerfile | A Foundations | Done |
+| 2 | Demo application "legacy-shop" | A | Next |
 | 3 | Competitor bench and go/no-go | A | |
 | 4 | Capture store | B Capture | |
 | 5 | HTTP recorder, experimental `record`, end-to-end harness | B | |
@@ -80,12 +80,12 @@ Milestones:
 ### Step 1 — Repository scaffold, CI, Dockerfile
 
 - **Goal:** an empty but real project that builds, tests and ships an image on every push.
-- **Build:** name conflict check and final name applied; Go module; `cmd/trowel` with a
-  command dispatcher, `version`, config loading from `trowel.yaml`; package skeleton; Makefile; lint
+- **Build:** name conflict check and final name applied; Go module; `cmd/legacy-checker` with a
+  command dispatcher, `version`, config loading from `legacy-checker.yaml`; package skeleton; Makefile; lint
   configuration; Dockerfile (base with `/bin/sh`); GitHub Actions: build, lint, unit tests
   on Linux, macOS and Windows, image build, `CGO_ENABLED=0`; dependency versions pinned
   with the date checked; CONTRIBUTING, SECURITY.md, no-telemetry statement.
-- **Done when:** `trowel version` prints version and commit; CI is green on `main` on all
+- **Done when:** `legacy-checker version` prints version and commit; CI is green on `main` on all
   three operating systems; the image builds in CI and runs `version`.
 
 ### Step 2 — Demo application "legacy-shop"
@@ -133,9 +133,9 @@ Milestones:
 
 - **Goal:** record every request and response, and have a harness all later steps reuse.
 - **Build:** `internal/httprec`: reverse proxy, body tees with caps, identity encoding,
-  preserved `Host`, upgrades and streams passed through; `trowel record` (HTTP only,
-  `experimental`); `compose.trowel.yaml` for the demo app with the start order and
-  `${TROWEL_CMD:-record}`; `test/e2e` harness that starts the stack in CI, runs the
+  preserved `Host`, upgrades and streams passed through; `legacy-checker record` (HTTP only,
+  `experimental`); `compose.legacy-checker.yaml` for the demo app with the start order and
+  `${LEGACY_CHECKER_CMD:-record}`; `test/e2e` harness that starts the stack in CI, runs the
   scenario and reads the store.
 - **Done when:** integration tests cover JSON, HTML, a response above the cap, a request
   above the response cap but below the request limit, a chunked stream, a redirect, an
@@ -146,7 +146,7 @@ Milestones:
 
 - **Goal:** nothing secret leaves the tool, and recordings can be looked at.
 - **Build:** `internal/redact`: secret rules by header and field name, user rules, value
-  dictionary with exact-value replacement across all exported strings; `trowel inspect`
+  dictionary with exact-value replacement across all exported strings; `legacy-checker inspect`
   listing exchanges (later with their statements), always redacted.
 - **Done when:** `inspect` output for the demo recording is a golden file; a CI search test
   proves that no password, token or cookie value of the scenario occurs in it.
@@ -263,10 +263,10 @@ Milestones:
 
 - **Goal:** the document a person reads.
 - **Build:** `internal/mapgen`: one `BEHAVIOUR.md` with header, endpoint index, endpoint
-  sections, CRUD matrix, findings, completeness notes; `trowel map`; redaction applied; the
+  sections, CRUD matrix, findings, completeness notes; `legacy-checker map`; redaction applied; the
   demo map committed under `examples/legacy-shop`.
 - **Done when:** output is covered by golden files; the committed map renders correctly on
-  GitHub; the secret search test covers `trowel/behaviour/**` (criterion A4); the harness
+  GitHub; the secret search test covers `legacy-checker/behaviour/**` (criterion A4); the harness
   checks A1 to A3.
 
 ### Step 18 — Reality check I: map of a system we did not write
@@ -286,8 +286,8 @@ Milestones:
 
 - **Goal:** anyone can install it.
 - **Build:** GoReleaser for Linux, macOS and Windows on amd64 and arm64 with checksums;
-  image published to the GitHub container registry on tags; `trowel init` writing a starter
-  `trowel.yaml` and Compose override; benchmark script for proxy overhead.
+  image published to the GitHub container registry on tags; `legacy-checker init` writing a starter
+  `legacy-checker.yaml` and Compose override; benchmark script for proxy overhead.
 - **Done when:** a release-candidate tag produces binaries and an image; the Linux binaries
   and the image pass the harness; `init` output works unedited on the demo app (criterion
   A6); overhead numbers are produced by the script (criterion A8).
@@ -327,11 +327,11 @@ Milestones:
 - **Goal:** recordings become reviewable test files.
 - **Build:** steps from exchanges; no static or bypassed exchange becomes a step; client
   identity by cookie lineage; cookie headers dropped; secrets to references and
-  `.trowel/secrets.env`; typed matchers at generation time; HTML bodies marked
+  `.legacy-checker/secrets.env`; typed matchers at generation time; HTML bodies marked
   `unasserted`; `sql.writes` from high-confidence statements, `unasserted` where an
-  ambiguous or unanalysable write exists; `trowel generate` (`experimental` until step 32).
+  ambiguous or unanalysable write exists; `legacy-checker generate` (`experimental` until step 32).
 - **Done when:** the demo flow is a golden file; generating twice is byte-identical; the
-  rotating login stays one client; the secret search test covers `trowel/flows/**`
+  rotating login stays one client; the secret search test covers `legacy-checker/flows/**`
   (criterion A13, first half).
 
 ### Step 24 — Value correlation and captures
@@ -347,7 +347,7 @@ Milestones:
 ### Step 25 — Snapshot and reset
 
 - **Goal:** every replay starts from the state the recording started from.
-- **Build:** admin connection and its preflight; `trowel snapshot create | list | drop`;
+- **Build:** admin connection and its preflight; `legacy-checker snapshot create | list | drop`;
   schema and row-count checksum; tap pause; the reset sequence with owner, grants and
   settings re-applied; `reset.command` hook; readiness wait; snapshot at `record` start.
 - **Done when:** scenario, reset, scenario yields identical generated ids; a database with
@@ -362,7 +362,7 @@ Milestones:
 - **Build:** `internal/replay`: flow loading, `origin` handling, no redirect following,
   per-client cookie jars, variables and captures with a clear "capture broken" failure,
   secret resolution, reset before the flow, status, header and JSON body assertions;
-  `trowel replay` (`experimental`).
+  `legacy-checker replay` (`experimental`).
 - **Done when:** the demo flow replays green on responses; a 302 step asserts 302; a seeded
   wrong status and a seeded wrong JSON field each fail at the right step; a missing secret
   fails before the first request with the list of names (criterion A13, second half).

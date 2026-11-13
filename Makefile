@@ -1,7 +1,7 @@
 # Developer entry points. CI runs the same commands directly (see
 # .github/workflows/ci.yml) so that it also works on Windows runners.
 
-BINARY  := trowel
+BINARY  := legacy-checker
 PKG     := github.com/jankady/legacy-checker
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT  ?= $(shell git rev-parse HEAD 2>/dev/null)
@@ -21,8 +21,8 @@ export CGO_ENABLED := 0
 
 all: check build
 
-build: ## Build bin/trowel for this machine
-	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/trowel
+build: ## Build bin/legacy-checker for this machine
+	go build -trimpath -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/legacy-checker
 
 test: ## Run unit tests
 	go test ./...
@@ -39,10 +39,10 @@ cross: ## Build every release target into dist/
 		[ "$$os" = windows ] && ext=.exe; \
 		echo "building $$os/$$arch"; \
 		GOOS=$$os GOARCH=$$arch go build -trimpath -ldflags "$(LDFLAGS)" \
-			-o dist/$(BINARY)-$$os-$$arch$$ext ./cmd/trowel || exit 1; \
+			-o dist/$(BINARY)-$$os-$$arch$$ext ./cmd/legacy-checker || exit 1; \
 	done
 
-image: ## Build the Docker image trowel:dev
+image: ## Build the Docker image legacy-checker:dev
 	docker build \
 		--build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg DATE=$(DATE) \
 		-t $(BINARY):dev .

@@ -8,7 +8,7 @@ research and the review, not yet proven by a test of our own.
 
 ## 1. Overview
 
-Trowel is one Go binary. Its commands read or write two kinds of data: a **capture store**
+Legacy Checker is one Go binary. Its commands read or write two kinds of data: a **capture store**
 (raw, local, never committed) and **artefacts** (plain text, redacted, committed to the
 user's repository).
 
@@ -33,7 +33,7 @@ flowchart LR
 
 | Command | Release | Purpose |
 |---|---|---|
-| `init` | 0.1 | Write a starter `trowel.yaml` and Compose override |
+| `init` | 0.1 | Write a starter `legacy-checker.yaml` and Compose override |
 | `record` | 0.1 | Proxy HTTP and PostgreSQL traffic into the capture store |
 | `inspect` | 0.1 | Show exchanges and their statements from a store, redacted |
 | `map` | 0.1 | Generate the behaviour map |
@@ -46,7 +46,7 @@ flowchart LR
 
 `record`, `calibrate` and `replay` each own both listeners (HTTP and database) for their
 lifetime; only one of them runs at a time. In Compose the service command is
-`${TROWEL_CMD:-record}`, and switching mode recreates the Trowel container. The app loses
+`${LEGACY_CHECKER_CMD:-record}`, and switching mode recreates the Legacy Checker container. The app loses
 its database connections at that moment and must reconnect (constraint 6 in the scope), so
 the runner polls a readiness URL (`ready.path`, with timeout) before the first step and
 after every reset. Rejected alternative: one long-lived daemon with a control socket; more
@@ -75,7 +75,7 @@ moving parts for no gain in the MVP.
 ### 2.2 PostgreSQL tap (`internal/dbtap`, `internal/dbtap/pg`)
 
 Design: **relay and tap, fail open.** On the database connection the application never
-sees different bytes because of Trowel.
+sees different bytes because of Legacy Checker.
 
 **Relay.** One goroutine per direction forwards bytes. It frames messages itself (type byte
 plus length), stamps each frame with the monotonic clock and a per-connection sequence
@@ -156,7 +156,7 @@ statement(id, conn_id, seq, exchange_id NULL, label, arrived_ns, finished_ns, pr
 analysis(statement_id, kind, operation, fingerprint, tables_read, tables_written)
 ```
 
-**The store is raw.** It contains credentials and personal data, lives under `.trowel/`,
+**The store is raw.** It contains credentials and personal data, lives under `.legacy-checker/`,
 and is git-ignored.
 
 ### 2.5 Redaction (`internal/redact`)
@@ -168,8 +168,8 @@ dictionary, and the **exact value is replaced wherever it occurs** in exported t
 headers, URLs, bodies, SQL text and SQL parameters. Value correlation and client labels
 work on raw values inside the tool and only placeholders leave it.
 
-`generate` writes the originals needed for replay to `.trowel/secrets.env` (git-ignored).
-`replay` resolves `{{secret.NAME}}` from the environment variable `TROWEL_SECRET_NAME`,
+`generate` writes the originals needed for replay to `.legacy-checker/secrets.env` (git-ignored).
+`replay` resolves `{{secret.NAME}}` from the environment variable `LEGACY_CHECKER_SECRET_NAME`,
 then from that file, and fails before the first request with the list of missing names.
 
 ### 2.6 SQL analysis (`internal/sqlinfo`)
@@ -270,15 +270,15 @@ Generation rules:
 
 ### 2.9 Snapshot and reset (`internal/replay`)
 
-Uses an **admin connection** (`reset.admin_dsn` or `TROWEL_ADMIN_DSN`) that goes directly
+Uses an **admin connection** (`reset.admin_dsn` or `LEGACY_CHECKER_ADMIN_DSN`) that goes directly
 to the upstream database, connects to a maintenance database, and is not seen by the tap.
 
-- `trowel snapshot create NAME` clones the current application database
+- `legacy-checker snapshot create NAME` clones the current application database
   (`CREATE DATABASE … TEMPLATE …`), records owner, grants and database-level settings, and
   blocks connections to the snapshot. `list` and `drop` manage them. `record` creates a
   snapshot at start unless one with the same schema checksum exists.
 - The flow stores the **logical** snapshot name plus a checksum of schema and per-table row
-  counts. In CI: seed the database, `trowel snapshot create baseline`, replay. A checksum
+  counts. In CI: seed the database, `legacy-checker snapshot create baseline`, replay. A checksum
   mismatch is a warning before replay starts.
 - **Reset sequence:** (1) gate closed; (2) tap paused; (3) admin connection drops the
   application database with `FORCE` and clones it from the snapshot with the recorded
@@ -356,9 +356,9 @@ All dependencies are MIT, BSD or Apache-2.0. Reference implementations under oth
 ## 4. Repository layout
 
 ```
-cmd/trowel/              main package
+cmd/legacy-checker/              main package
 internal/cli/            command dispatch, global flags, help, exit codes
-internal/config/         trowel.yaml loading, environment overrides, validation
+internal/config/         legacy-checker.yaml loading, environment overrides, validation
 internal/buildinfo/      version, commit and platform of the running binary
 internal/store/          SQLite schema, migrations, single writer
 internal/httprec/        recording reverse proxy, serial gate
@@ -381,36 +381,36 @@ docs/                    this documentation
 Files in the user's project:
 
 ```
-trowel.yaml              configuration (committed)
-.trowel/                 capture stores, secrets.env, local state (git-ignored)
-trowel/flows/<name>/     flow.yaml and sidecar bodies (committed, redacted)
-trowel/behaviour/        behaviour.json, BEHAVIOUR.md (committed, redacted)
+legacy-checker.yaml              configuration (committed)
+.legacy-checker/                 capture stores, secrets.env, local state (git-ignored)
+legacy-checker/flows/<name>/     flow.yaml and sidecar bodies (committed, redacted)
+legacy-checker/behaviour/        behaviour.json, BEHAVIOUR.md (committed, redacted)
 ```
 
 ## 5. Deployment
 
 ```yaml
-# compose.trowel.yaml — docker compose -f compose.yaml -f compose.trowel.yaml up
+# compose.legacy-checker.yaml — docker compose -f compose.yaml -f compose.legacy-checker.yaml up
 services:
-  trowel:
-    image: ghcr.io/OWNER/trowel:latest
-    command: ${TROWEL_CMD:-record}
+  legacy-checker:
+    image: ghcr.io/jankady/legacy-checker:latest
+    command: ${LEGACY_CHECKER_CMD:-record}
     environment:
-      TROWEL_HTTP_UPSTREAM: http://app:3000
-      TROWEL_DB_UPSTREAM: db:5432
-      TROWEL_ADMIN_DSN: postgres://owner:…@db:5432/postgres   # replay only
+      LEGACY_CHECKER_HTTP_UPSTREAM: http://app:3000
+      LEGACY_CHECKER_DB_UPSTREAM: db:5432
+      LEGACY_CHECKER_ADMIN_DSN: postgres://owner:…@db:5432/postgres   # replay only
     ports: ["8080:8080"]
     volumes: [".:/work"]
     depends_on: [db]
   app:
     environment:
-      DATABASE_HOST: trowel
-    depends_on: [trowel]
+      DATABASE_HOST: legacy-checker
+    depends_on: [legacy-checker]
     restart: unless-stopped
 ```
 
-- Start order: database, Trowel, app. The HTTP upstream check retries until the app is up.
-- Mode switch: `TROWEL_CMD=replay docker compose up -d --force-recreate trowel`.
+- Start order: database, Legacy Checker, app. The HTTP upstream check retries until the app is up.
+- Mode switch: `LEGACY_CHECKER_CMD=replay docker compose up -d --force-recreate legacy-checker`.
 - A client that insists on TLS can only be seen when it connects, so the tap reports it
   then, with a message per driver family: node-postgres "remove `ssl` or use
   `sslmode=disable`" (its `prefer` turns TLS on); libpq-based drivers "use
@@ -423,7 +423,7 @@ services:
 | Unit | Decoder state machine, labels, templating, diffs, matchers, write-target rules | Next to the code, table-driven; also run on macOS and Windows runners |
 | Golden file | `inspect`, map, flow generation, reports | `testdata/` directories |
 | Integration | Tap against the oldest supported and the newest PostgreSQL with `pg`, `pgx` and `psql` | `testcontainers-go` |
-| End-to-end | The demo app in Compose with Trowel in between, from step 5 on; checks driven by `expected.yaml` | `test/e2e`, GitHub Actions |
+| End-to-end | The demo app in Compose with Legacy Checker in between, from step 5 on; checks driven by `expected.yaml` | `test/e2e`, GitHub Actions |
 | Reality check | A system we did not write | Steps 18 and 34 |
 
 ## 7. Risks carried by this design

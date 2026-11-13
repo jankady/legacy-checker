@@ -1,6 +1,6 @@
 .git
 .github
-.trowel
+.legacy-checker
 bin
 dist
 docs

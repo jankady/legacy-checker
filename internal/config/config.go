@@ -1,7 +1,7 @@
-// Package config loads and validates trowel.yaml.
+// Package config loads and validates legacy-checker.yaml.
 //
 // Precedence, lowest to highest: built-in defaults, the configuration file,
-// TROWEL_* environment variables. Unknown keys are rejected so that a typo
+// LEGACY_CHECKER_* environment variables. Unknown keys are rejected so that a typo
 // is reported instead of being silently ignored.
 package config
 
@@ -20,12 +20,12 @@ import (
 
 const (
 	// DefaultPath is where the configuration is looked for when no path is given.
-	DefaultPath = "trowel.yaml"
+	DefaultPath = "legacy-checker.yaml"
 	// SchemaVersion is the only configuration version this build understands.
 	SchemaVersion = 1
 )
 
-// Config is the content of trowel.yaml. Later steps add sections; a section is
+// Config is the content of legacy-checker.yaml. Later steps add sections; a section is
 // added in the step that first reads it.
 type Config struct {
 	Version int  `yaml:"version"`
@@ -33,13 +33,13 @@ type Config struct {
 	DB      DB   `yaml:"db"`
 }
 
-// HTTP configures the HTTP side: where Trowel listens and which app it fronts.
+// HTTP configures the HTTP side: where Legacy Checker listens and which app it fronts.
 type HTTP struct {
 	Listen   string `yaml:"listen"`
 	Upstream string `yaml:"upstream"`
 }
 
-// DB configures the database side: where Trowel listens and which database it
+// DB configures the database side: where Legacy Checker listens and which database it
 // relays to.
 type DB struct {
 	Listen   string `yaml:"listen"`
@@ -116,10 +116,10 @@ func applyEnv(cfg *Config, getenv func(string) string) {
 		return
 	}
 	for name, dst := range map[string]*string{
-		"TROWEL_HTTP_LISTEN":   &cfg.HTTP.Listen,
-		"TROWEL_HTTP_UPSTREAM": &cfg.HTTP.Upstream,
-		"TROWEL_DB_LISTEN":     &cfg.DB.Listen,
-		"TROWEL_DB_UPSTREAM":   &cfg.DB.Upstream,
+		"LEGACY_CHECKER_HTTP_LISTEN":   &cfg.HTTP.Listen,
+		"LEGACY_CHECKER_HTTP_UPSTREAM": &cfg.HTTP.Upstream,
+		"LEGACY_CHECKER_DB_LISTEN":     &cfg.DB.Listen,
+		"LEGACY_CHECKER_DB_UPSTREAM":   &cfg.DB.Upstream,
 	} {
 		if v := getenv(name); v != "" {
 			*dst = v

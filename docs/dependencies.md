@@ -10,7 +10,7 @@ version floors and licences are decided before the step that needs them.
 
 | Module | Version | Licence | Used for | Since |
 |---|---|---|---|---|
-| `github.com/goccy/go-yaml` | v1.19.2 (latest tag on the day checked) | MIT | Reading `trowel.yaml`; later flow files | Step 1 |
+| `github.com/goccy/go-yaml` | v1.19.2 (latest tag on the day checked) | MIT | Reading `legacy-checker.yaml`; later flow files | Step 1 |
 
 Everything else in step 1 is the Go standard library, including the command line
 (decision D28).

@@ -50,7 +50,7 @@ jobs:
         if: runner.os == 'Linux'
         run: go test -race ./...
       - name: The binary runs
-        run: go run ./cmd/trowel version
+        run: go run ./cmd/legacy-checker version
         env:
           CGO_ENABLED: "0"
 
@@ -66,7 +66,7 @@ jobs:
         run: make cross
       - name: The Linux binary reports its commit
         run: |
-          out="$(./dist/trowel-linux-amd64 version)"
+          out="$(./dist/legacy-checker-linux-amd64 version)"
           echo "$out"
           case "$out" in
             *"commit ${GITHUB_SHA:0:12}"*) ;;
@@ -83,8 +83,8 @@ jobs:
           docker build \
             --build-arg VERSION=ci \
             --build-arg COMMIT="${GITHUB_SHA}" \
-            -t trowel:ci .
+            -t legacy-checker:ci .
       - name: The image runs and has a shell
         run: |
-          docker run --rm trowel:ci version
-          docker run --rm --entrypoint /bin/sh trowel:ci -c 'echo shell ok'
+          docker run --rm legacy-checker:ci version
+          docker run --rm --entrypoint /bin/sh legacy-checker:ci -c 'echo shell ok'

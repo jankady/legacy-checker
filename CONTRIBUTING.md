@@ -23,12 +23,12 @@ image and, from step 2 on, for integration tests.
 
 | Command | What it does |
 |---|---|
-| `make build` | Build `bin/trowel` for your machine |
+| `make build` | Build `bin/legacy-checker` for your machine |
 | `make test` | Run unit tests |
 | `make lint` | Run the linters |
 | `make fmt` | Format the code |
 | `make cross` | Build all six release targets into `dist/` |
-| `make image` | Build the Docker image `trowel:dev` |
+| `make image` | Build the Docker image `legacy-checker:dev` |
 | `make check` | Lint, test, and verify that `go.mod` is tidy |
 
 ## Conventions
@@ -43,7 +43,7 @@ image and, from step 2 on, for integration tests.
 - **Errors tell the user what to do.** A message names the setting or the command that
   fixes the problem.
 - **No telemetry, no network connections** other than the upstreams the user configured.
-- **Never commit recordings.** `.trowel/` holds raw captures with credentials and personal
+- **Never commit recordings.** `.legacy-checker/` holds raw captures with credentials and personal
   data and is git-ignored.
 
 ## Commit messages

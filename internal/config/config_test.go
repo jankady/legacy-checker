@@ -11,7 +11,7 @@ func noEnv(string) string { return "" }
 
 func writeFile(t *testing.T, content string) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "trowel.yaml")
+	path := filepath.Join(t.TempDir(), "legacy-checker.yaml")
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +19,7 @@ func writeFile(t *testing.T, content string) string {
 }
 
 func TestLoadDefaultsWhenDefaultFileIsMissing(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "trowel.yaml")
+	path := filepath.Join(t.TempDir(), "legacy-checker.yaml")
 
 	got, err := Load(path, false, noEnv)
 	if err != nil {
@@ -100,9 +100,9 @@ func TestLoadRejectsMalformedYAML(t *testing.T) {
 func TestEnvironmentOverridesFile(t *testing.T) {
 	path := writeFile(t, "http:\n  upstream: http://from-file:3000\ndb:\n  upstream: from-file:5432\n")
 	env := map[string]string{
-		"TROWEL_HTTP_LISTEN":   ":18080",
-		"TROWEL_HTTP_UPSTREAM": "http://from-env:3000",
-		"TROWEL_DB_LISTEN":     ":15432",
+		"LEGACY_CHECKER_HTTP_LISTEN":   ":18080",
+		"LEGACY_CHECKER_HTTP_UPSTREAM": "http://from-env:3000",
+		"LEGACY_CHECKER_DB_LISTEN":     ":15432",
 	}
 
 	got, err := Load(path, true, func(k string) string { return env[k] })

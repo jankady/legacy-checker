@@ -1,4 +1,4 @@
-// Command trowel observes a web application from the outside and turns what it
+// Command legacy-checker observes a web application from the outside and turns what it
 // sees into a behaviour map and replayable tests. See docs/ for the plan.
 package main
 

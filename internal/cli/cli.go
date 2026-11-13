@@ -1,4 +1,4 @@
-// Package cli implements the trowel command line: global flags, command
+// Package cli implements the legacy-checker command line: global flags, command
 // dispatch, help and exit codes. Each command lives in its own file and is
 // registered in commands().
 //
@@ -19,7 +19,7 @@ import (
 )
 
 // Name is the name of the binary as shown in help and messages.
-const Name = "trowel"
+const Name = "legacy-checker"
 
 // Exit codes. Later steps add codes for classes of test failure.
 const (

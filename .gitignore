@@ -1,4 +1,4 @@
-.trowel/
+.legacy-checker/
 *.db
 *.db-wal
 *.db-shm
