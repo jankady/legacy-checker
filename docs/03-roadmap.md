@@ -31,8 +31,8 @@ estimate made before any code exists.
 |---|---|---|---|
 | 0 | Research, scope, architecture, roadmap, independent review | Plan | Done |
 | 1 | Repository scaffold, CI, Dockerfile | A Foundations | Done |
-| 2 | Demo application "legacy-shop" | A | Next |
-| 3 | Competitor bench and go/no-go | A | |
+| 2 | Demo application "legacy-shop" | A | Done |
+| 3 | Competitor bench and go/no-go | A | Next |
 | 4 | Capture store | B Capture | |
 | 5 | HTTP recorder, experimental `record`, end-to-end harness | B | |
 | 6 | Redaction and `inspect` | B | |
@@ -100,7 +100,8 @@ Milestones:
   switched on by an environment variable; responses containing a timestamp, a UUID, an
   epoch-milliseconds number, a random numeric nonce and "rendered in N ms"; a table with a
   trigger. `scenario.sh` exercises all of it. `expected.yaml` lists, per scenario request,
-  statement count and SQL prefix, and per endpoint the tables read and written.
+  the statements the database receives, and per endpoint the tables read and written;
+  `verify-expected.mjs` checks it against the PostgreSQL statement log.
 - **Done when:** `docker compose up` starts the app; the scenario passes locally and in CI;
   a script checks that every scenario request has an entry in `expected.yaml`.
 

@@ -1,0 +1,321 @@
+# Ground truth for legacy-shop, written by hand from app/server.js and checked
+# against the PostgreSQL statement log by scenario/verify-expected.mjs.
+# Legacy Checker's own results are compared with this file (acceptance
+# criteria A2 and A3 in docs/01-mvp-scope.md).
+#
+# requests: one entry per scenario request, in order.
+#   statements  what the database receives while the request is being handled,
+#               in order. A string matches when the real statement starts with it.
+#   late        statements that arrive after the response has been sent.
+#   outcome     what happened to the writes: committed (default), rolled_back
+#               (whole transaction) or partial (a savepoint was rolled back;
+#               see undone).
+#
+# endpoints: what a behaviour map of this scenario must say.
+#   reads       tables a statement selects from: FROM, JOIN, subqueries,
+#               UPDATE ... FROM. The target of a write is not a read.
+#   writes      table -> operations that were committed at least once.
+#   late_writes the same, for statements that arrive after the response.
+#
+# Only behaviour the scenario exercises is listed. GET /login, for example,
+# also reads sessions when the browser already has a cookie; the scenario never
+# does that, so it is not here.
+
+version: 1
+
+requests:
+  - id: r01
+    endpoint: GET /healthz
+    status: 200
+    statements:
+      - "SELECT 1"
+  - id: r02
+    endpoint: GET /static/style.css
+    status: 200
+    statements: []
+  - id: r03
+    endpoint: GET /api/status
+    status: 200
+    statements:
+      - "SELECT now() AS db_time"
+  - id: r04
+    endpoint: GET /login
+    status: 200
+    statements:
+      - "INSERT INTO sessions (id, csrf_token, expires_at) VALUES ($1, $2, now() + interval '1 hour')"
+  - id: r05
+    endpoint: POST /login
+    status: 302
+    statements:
+      - "SELECT s.id, s.user_id, s.csrf_token, u.email, u.display_name FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.id = $1 AND s.expires_at > now()"
+      - "SELECT id, password_hash, salt FROM users WHERE email = $1"
+      - "DELETE FROM sessions WHERE id = $1"
+      - "INSERT INTO sessions (id, user_id, csrf_token, expires_at) VALUES ($1, $2, $3, now() + interval '1 hour')"
+  - id: r06
+    endpoint: GET /account
+    status: 200
+    statements:
+      - "SELECT s.id, s.user_id, s.csrf_token, u.email, u.display_name FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.id = $1 AND s.expires_at > now()"
+      - "SELECT count(*)::int AS n FROM orders WHERE user_id = $1"
+  - id: r07
+    endpoint: POST /account
+    status: 302
+    statements:
+      - "SELECT s.id, s.user_id, s.csrf_token, u.email, u.display_name FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.id = $1 AND s.expires_at > now()"
+      - "UPDATE users SET display_name = $1 WHERE id = $2"
+  - id: r08
+    endpoint: GET /account
+    status: 200
+    statements:
+      - "SELECT s.id, s.user_id, s.csrf_token, u.email, u.display_name FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.id = $1 AND s.expires_at > now()"
+      - "SELECT count(*)::int AS n FROM orders WHERE user_id = $1"
+  - id: r09
+    endpoint: POST /api/login
+    status: 200
+    statements:
+      - "SELECT id, password_hash, salt FROM users WHERE email = $1"
+      - "INSERT INTO api_tokens (token, user_id, expires_at) VALUES ($1, $2, now() + interval '1 hour') RETURNING expires_at"
+  - id: r10
+    endpoint: GET /api/products
+    status: 200
+    statements:
+      - "SELECT id, name, price_cents, stock FROM products ORDER BY id"
+  - id: r11
+    endpoint: GET /api/products/{id}
+    status: 200
+    statements:
+      - "SELECT id, name, price_cents, stock, view_count FROM products WHERE id = $1"
+    late:
+      - "UPDATE products SET view_count = view_count + 1 WHERE id = $1"
+  - id: r12
+    endpoint: PUT /api/products/{id}/rating
+    status: 200
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "INSERT INTO product_ratings (user_id, product_id, rating) VALUES ($1, $2, $3) ON CONFLICT (user_id, product_id) DO UPDATE SET rating = EXCLUDED.rating, updated_at = now()"
+  - id: r13
+    endpoint: PUT /api/products/{id}/rating
+    status: 200
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "INSERT INTO product_ratings (user_id, product_id, rating) VALUES ($1, $2, $3) ON CONFLICT (user_id, product_id) DO UPDATE SET rating = EXCLUDED.rating, updated_at = now()"
+  - id: r14
+    endpoint: POST /api/cart/items
+    status: 201
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at = now()"
+      - "INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, $3) ON CONFLICT (user_id, product_id) DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity RETURNING id, quantity"
+  - id: r15
+    endpoint: POST /api/cart/items
+    status: 201
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at = now()"
+      - "INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, $3) ON CONFLICT (user_id, product_id) DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity RETURNING id, quantity"
+  - id: r16
+    endpoint: GET /api/cart
+    status: 200
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "SELECT ci.product_id, p.name, ci.quantity, p.price_cents FROM cart_items ci JOIN products p ON p.id = ci.product_id WHERE ci.user_id = $1 ORDER BY ci.id"
+  - id: r17
+    endpoint: POST /api/checkout
+    status: 201
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "BEGIN"
+      - "SELECT ci.product_id, ci.quantity, p.price_cents FROM cart_items ci JOIN products p ON p.id = ci.product_id WHERE ci.user_id = $1 ORDER BY ci.id FOR UPDATE OF p"
+      - "INSERT INTO orders (user_id, status, total_cents) VALUES ($1, 'new', $2) RETURNING id, public_id, created_at"
+      - "INSERT INTO order_items (order_id, product_id, quantity, price_cents) SELECT $1, ci.product_id, ci.quantity, p.price_cents FROM cart_items ci JOIN products p ON p.id = ci.product_id WHERE ci.user_id = $2"
+      - "UPDATE products p SET stock = p.stock - ci.quantity FROM cart_items ci WHERE ci.product_id = p.id AND ci.user_id = $1"
+      - "SAVEPOINT coupon"
+      - "INSERT INTO coupon_redemptions (coupon_code, user_id, order_id) VALUES ($1, $2, $3)"
+      - "UPDATE orders SET total_cents = total_cents - (total_cents * (SELECT percent_off FROM coupons WHERE code = $1) / 100) WHERE id = $2 RETURNING total_cents"
+      - "RELEASE SAVEPOINT coupon"
+      - "DELETE FROM cart_items WHERE user_id = $1"
+      - "COMMIT"
+  - id: r18
+    endpoint: GET /api/orders/{id}
+    status: 200
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "SELECT id, public_id, status, total_cents, created_at FROM orders WHERE id = $1 AND user_id = $2"
+      - "SELECT product_id, quantity, price_cents FROM order_items WHERE order_id = $1 ORDER BY id"
+      - "INSERT INTO audit_log (user_id, action, detail) VALUES ($1, 'order.view', $2)"
+  - id: r19
+    endpoint: GET /api/orders
+    status: 200
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "SELECT id, status, total_cents FROM orders WHERE user_id = $1 ORDER BY id"
+      - "SELECT product_id, quantity FROM order_items WHERE order_id = $1 ORDER BY id"
+      - "SELECT product_id, quantity FROM order_items WHERE order_id = $1 ORDER BY id"
+  - id: r20
+    endpoint: POST /api/orders/{id}/cancel
+    status: 409
+    outcome: rolled_back
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "BEGIN"
+      - "SELECT status FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE"
+      - "UPDATE orders SET status = 'cancelled' WHERE id = $1"
+      - "INSERT INTO audit_log (user_id, action, detail) VALUES ($1, 'order.cancel', $2)"
+      - "ROLLBACK"
+  - id: r21
+    endpoint: POST /api/cart/items
+    status: 201
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at = now()"
+      - "INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, $3) ON CONFLICT (user_id, product_id) DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity RETURNING id, quantity"
+  - id: r22
+    endpoint: POST /api/checkout
+    status: 201
+    outcome: partial
+    undone:
+      - "INSERT INTO coupon_redemptions"
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "BEGIN"
+      - "SELECT ci.product_id, ci.quantity, p.price_cents FROM cart_items ci JOIN products p ON p.id = ci.product_id WHERE ci.user_id = $1 ORDER BY ci.id FOR UPDATE OF p"
+      - "INSERT INTO orders (user_id, status, total_cents) VALUES ($1, 'new', $2) RETURNING id, public_id, created_at"
+      - "INSERT INTO order_items (order_id, product_id, quantity, price_cents) SELECT $1, ci.product_id, ci.quantity, p.price_cents FROM cart_items ci JOIN products p ON p.id = ci.product_id WHERE ci.user_id = $2"
+      - "UPDATE products p SET stock = p.stock - ci.quantity FROM cart_items ci WHERE ci.product_id = p.id AND ci.user_id = $1"
+      - "SAVEPOINT coupon"
+      - "INSERT INTO coupon_redemptions (coupon_code, user_id, order_id) VALUES ($1, $2, $3)"
+      - "ROLLBACK TO SAVEPOINT coupon"
+      - "DELETE FROM cart_items WHERE user_id = $1"
+      - "COMMIT"
+  - id: r23
+    endpoint: POST /api/orders/{id}/cancel
+    status: 200
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "BEGIN"
+      - "SELECT status FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE"
+      - "UPDATE orders SET status = 'cancelled' WHERE id = $1"
+      - "INSERT INTO audit_log (user_id, action, detail) VALUES ($1, 'order.cancel', $2)"
+      - "COMMIT"
+  - id: r24
+    endpoint: POST /api/cart/items
+    status: 201
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "INSERT INTO carts (user_id) VALUES ($1) ON CONFLICT (user_id) DO UPDATE SET updated_at = now()"
+      - "INSERT INTO cart_items (user_id, product_id, quantity) VALUES ($1, $2, $3) ON CONFLICT (user_id, product_id) DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity RETURNING id, quantity"
+  - id: r25
+    endpoint: POST /api/cart/clear
+    status: 200
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "WITH removed AS (DELETE FROM cart_items WHERE user_id = $1 RETURNING user_id, product_id, quantity) INSERT INTO cart_archive (user_id, product_id, quantity) SELECT user_id, product_id, quantity FROM removed"
+  - id: r26
+    endpoint: POST /api/checkout
+    status: 400
+    outcome: rolled_back
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "BEGIN"
+      - "SELECT ci.product_id, ci.quantity, p.price_cents FROM cart_items ci JOIN products p ON p.id = ci.product_id WHERE ci.user_id = $1 ORDER BY ci.id FOR UPDATE OF p"
+      - "ROLLBACK"
+  - id: r27
+    endpoint: GET /api/orders/{id}
+    status: 404
+    statements:
+      - "SELECT u.id, u.email, u.display_name FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = $1 AND t.expires_at > now()"
+      - "SELECT id, public_id, status, total_cents, created_at FROM orders WHERE id = $1 AND user_id = $2"
+
+# Statements that no request causes. The timer runs only when the app is
+# started with ENABLE_CLEANUP_JOB=1.
+background:
+  - "DELETE FROM sessions WHERE expires_at < now()"
+
+endpoints:
+  GET /healthz:
+    reads: []
+    writes: {}
+  GET /static/style.css:
+    static: true
+    reads: []
+    writes: {}
+  GET /api/status:
+    reads: []
+    writes: {}
+  GET /login:
+    reads: []
+    writes:
+      sessions: [insert]
+  POST /login:
+    reads: [sessions, users]
+    writes:
+      sessions: [delete, insert]
+  GET /account:
+    reads: [orders, sessions, users]
+    writes: {}
+  POST /account:
+    reads: [sessions, users]
+    writes:
+      users: [update]
+  POST /api/login:
+    reads: [users]
+    writes:
+      api_tokens: [insert]
+  GET /api/products:
+    reads: [products]
+    writes: {}
+  GET /api/products/{id}:
+    reads: [products]
+    writes: {}
+    late_writes:
+      products: [update]
+  PUT /api/products/{id}/rating:
+    reads: [api_tokens, users]
+    writes:
+      product_ratings: [upsert]
+  POST /api/cart/items:
+    reads: [api_tokens, users]
+    writes:
+      cart_items: [upsert]
+      carts: [upsert]
+  GET /api/cart:
+    reads: [api_tokens, cart_items, products, users]
+    writes: {}
+  POST /api/cart/clear:
+    reads: [api_tokens, users]
+    writes:
+      cart_archive: [insert]
+      cart_items: [delete]
+  POST /api/checkout:
+    reads: [api_tokens, cart_items, coupons, products, users]
+    writes:
+      cart_items: [delete]
+      coupon_redemptions: [insert]
+      order_items: [insert]
+      orders: [insert, update]
+      products: [update]
+  GET /api/orders:
+    reads: [api_tokens, order_items, orders, users]
+    writes: {}
+  GET /api/orders/{id}:
+    reads: [api_tokens, order_items, orders, users]
+    writes:
+      audit_log: [insert]
+  POST /api/orders/{id}/cancel:
+    reads: [api_tokens, orders, users]
+    writes:
+      audit_log: [insert]
+      orders: [update]
+
+# What a reader of the map should be told about.
+findings:
+  get_writes:
+    - GET /login
+    - GET /api/orders/{id}
+  late_writes:
+    - GET /api/products/{id}
+  n_plus_one:
+    - GET /api/orders
+  # Tables whose writes have effects the wire does not show.
+  trigger_tables: [orders]
+  cascade_tables: [orders]
