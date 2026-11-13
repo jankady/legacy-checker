@@ -1,0 +1,15 @@
+{
+  "name": "legacy-shop-scenario",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scripted scenario for legacy-shop and the check that expected.yaml is true.",
+  "scripts": {
+    "scenario": "node scenario.mjs",
+    "verify": "node verify-expected.mjs"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "yaml": "^2.6.1"
+  }
+}

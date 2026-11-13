@@ -1,0 +1,50 @@
+# legacy-shop: docker compose up --build --wait
+#
+# App:      http://localhost:3000
+# Database: localhost:55432 (user, password and database: shop)
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop
+      POSTGRES_DB: shop
+    # Statement logging is the ground truth that verify-expected.mjs compares
+    # expected.yaml with. It does not change what the application does.
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_line_prefix=%m [%p] "]
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shop -d shop"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: ./app
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_USER: shop
+      DATABASE_PASSWORD: shop
+      DATABASE_NAME: shop
+      # Set to 1 to start the in-process cleanup timer.
+      ENABLE_CLEANUP_JOB: ${ENABLE_CLEANUP_JOB:-0}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # The app has no handler for lost database connections and exits when
+    # they drop. Something has to start it again.
+    restart: unless-stopped
+    # A static file on purpose: /healthz runs a query, and a health check that
+    # touches the database every two seconds would show up in every recording.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/static/style.css"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

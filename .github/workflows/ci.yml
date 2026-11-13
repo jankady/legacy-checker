@@ -88,3 +88,45 @@ jobs:
         run: |
           docker run --rm legacy-checker:ci version
           docker run --rm --entrypoint /bin/sh legacy-checker:ci -c 'echo shell ok'
+
+  demo:
+    name: Demo app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/legacy-shop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install scenario dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: examples/legacy-shop/scenario
+      - name: expected.yaml covers every scenario request
+        run: node scenario/verify-expected.mjs
+      - name: Start the stack
+        run: docker compose up -d --build --wait
+      - name: Scenario passes and expected.yaml matches the database log
+        run: ./scenario.sh --verify
+      - name: App comes back after losing its database connections
+        run: |
+          # Make sure the pool holds an idle connection right now.
+          curl -fsS http://localhost:3000/healthz
+          docker compose exec -T db psql -U shop -d shop -c \
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = 'shop' AND pid <> pg_backend_pid()"
+          sleep 5
+          docker compose up -d --wait
+          curl -fsS http://localhost:3000/healthz
+          restarts="$(docker inspect -f '{{.RestartCount}}' "$(docker compose ps -q app)")"
+          echo "app restart count: $restarts"
+          test "$restarts" -ge 1
+      - name: Scenario passes with the background job running
+        run: |
+          docker compose down -v
+          ENABLE_CLEANUP_JOB=1 docker compose up -d --wait
+          ./scenario.sh
+          docker compose logs --no-log-prefix db | grep -c "DELETE FROM sessions WHERE expires_at"
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 200

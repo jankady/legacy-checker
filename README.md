@@ -5,8 +5,8 @@
 > and writes, and replay tests against the real database that fail when it ends up
 > different. No SDK, no agent, no code change.
 
-**Status: step 1 of 35.** The repository scaffold exists; the tool does not record anything
-yet. The project is built in small, strictly sequential steps; see the roadmap.
+**Status: step 2 of 35.** The scaffold and the demo application exist; the tool does not
+record anything yet. The project is built in small, strictly sequential steps; see the roadmap.
 
 ## Why
 
