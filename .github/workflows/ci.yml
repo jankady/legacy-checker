@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          # Matches the Go release the pinned golangci-lint was built with.
+          go-version: "1.25.x"
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5.0
+      - name: go.mod and go.sum are tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Unit tests
+        run: go test ./...
+        env:
+          CGO_ENABLED: "0"
+      - name: Unit tests with the race detector
+        if: runner.os == 'Linux'
+        run: go test -race ./...
+      - name: The binary runs
+        run: go run ./cmd/legacy-checker version
+        env:
+          CGO_ENABLED: "0"
+
+  build:
+    name: Cross-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Build all release targets without CGO
+        run: make cross
+      - name: The Linux binary reports its commit
+        run: |
+          out="$(./dist/legacy-checker-linux-amd64 version)"
+          echo "$out"
+          case "$out" in
+            *"commit ${GITHUB_SHA:0:12}"*) ;;
+            *) echo "version output does not contain the commit"; exit 1 ;;
+          esac
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image
+        run: |
+          docker build \
+            --build-arg VERSION=ci \
+            --build-arg COMMIT="${GITHUB_SHA}" \
+            -t legacy-checker:ci .
+      - name: The image runs and has a shell
+        run: |
+          docker run --rm legacy-checker:ci version
+          docker run --rm --entrypoint /bin/sh legacy-checker:ci -c 'echo shell ok'

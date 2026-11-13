@@ -1,0 +1,9 @@
+.git
+.github
+.legacy-checker
+bin
+dist
+docs
+examples
+*.md
+*.db

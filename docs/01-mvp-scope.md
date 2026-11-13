@@ -21,12 +21,12 @@ evidence as context.
 
 ## 2. Product in one sentence
 
-> Put Trowel between the web app you inherited and its PostgreSQL database. Click through a
+> Put Legacy Checker between the web app you inherited and its PostgreSQL database. Click through a
 > feature once and you get a committed map of which tables each endpoint you touched reads
 > and writes, and replay tests against the real database that fail when it ends up
 > different. No SDK, no agent, no code change.
 
-"Ends up different" is meant literally: after a replayed flow, Trowel compares which tables
+"Ends up different" is meant literally: after a replayed flow, Legacy Checker compares which tables
 were written, how many rows each operation affected, and a per-column checksum of the
 written tables (F11). A changed stored value fails the test, not only a changed row count.
 
@@ -35,7 +35,7 @@ written tables (F11). A changed stored value fails the test, not only a changed 
 The category "generate API tests from recorded traffic" is crowded and free (Keploy,
 Speedscale proxymock, Tusk Drift). The MVP does not compete there. It claims three points:
 
-| Point | Trowel | Closest tools, as far as the research could read |
+| Point | Legacy Checker | Closest tools, as far as the research could read |
 |---|---|---|
 | Database | Real database stays in the loop; tests assert on written state | Record SQL in order to mock the database away; proxymock compares statement text between runs |
 | Understanding | The behaviour map is a committed, diffable artefact | Tests and inventories; AppMap maps behaviour through a per-language agent |
@@ -57,14 +57,14 @@ Order of messaging: **understanding first, tests second.**
 
 ## 5. User journey
 
-1. `trowel init` writes a config file and a Compose override. The app's database host points
-   at Trowel; the browser points at Trowel's HTTP port.
-2. `trowel record` — click through one feature of the app, or run a script. Stop.
-3. `trowel map` — read `BEHAVIOUR.md`: endpoints you exercised, tables each one reads and
+1. `legacy-checker init` writes a config file and a Compose override. The app's database host points
+   at Legacy Checker; the browser points at Legacy Checker's HTTP port.
+2. `legacy-checker record` — click through one feature of the app, or run a script. Stop.
+3. `legacy-checker map` — read `BEHAVIOUR.md`: endpoints you exercised, tables each one reads and
    writes, a table-by-endpoint matrix, and findings such as "this GET writes to `audit_log`".
-4. `trowel generate`, then `trowel calibrate` — flow tests appear as YAML files. Everything
+4. `legacy-checker generate`, then `legacy-checker calibrate` — flow tests appear as YAML files. Everything
    that is not asserted is written down in the file.
-5. Change the app. `trowel replay` — a diff shows which step changed and how. Exit code and
+5. Change the app. `legacy-checker replay` — a diff shows which step changed and how. Exit code and
    JUnit XML make it usable in CI.
 
 ## 6. In scope
@@ -79,7 +79,7 @@ Order of messaging: **understanding first, tests second.**
 | F6 | Preflight and `inspect` | 0.1 | Plain instructions for unsupported setups; a way to look into a recording |
 | F7 | SQL analysis | 0.1 | Statement kind, fingerprint, tables read and written |
 | F8 | Behaviour map | 0.1 | `behaviour.json` and one `BEHAVIOUR.md`: endpoint index, per-endpoint sections, CRUD matrix, findings, completeness notes |
-| F9 | Distribution | 0.1 | Docker image and Linux binaries supported; macOS and Windows binaries built and smoke-tested; `trowel init` |
+| F9 | Distribution | 0.1 | Docker image and Linux binaries supported; macOS and Windows binaries built and smoke-tested; `legacy-checker init` |
 | F10 | Snapshot and reset | 0.2 | Named snapshots; reset before every flow |
 | F11 | Flow tests | 0.2 | YAML flows, cookie jars, captured variables; assertions on status, headers, JSON body, table writes, end-of-flow state checksum |
 | F12 | Noise handling | 0.2 | Built-in typed matchers, `calibrate` (double replay), user rules at global and step level |
@@ -108,15 +108,15 @@ Order of messaging: **understanding first, tests second.**
 
 These go at the top of the README. They are the real adoption cost.
 
-1. Trowel runs against a **non-production copy** of the application.
+1. Legacy Checker runs against a **non-production copy** of the application.
 2. While recording and replaying, requests are processed **one at a time**.
 3. The connection between the app and the database is **plain TCP**.
 4. PostgreSQL 13 or newer. For replay, an **admin role** that owns the application database
    (or is superuser) and may create databases.
 5. Background workers and cron jobs that use the same database should be stopped. Timers
-   inside the app process cannot be stopped; Trowel labels what it can detect.
+   inside the app process cannot be stopped; Legacy Checker labels what it can detect.
 6. The app must **survive losing its database connections or be restarted by its
-   supervisor**; Trowel waits until it is ready again after a reset.
+   supervisor**; Legacy Checker waits until it is ready again after a reset.
 7. **Replay sends real requests.** Outbound e-mail, payments and other side effects must be
    sandboxed by the user before replay.
 8. Recordings contain credentials and personal data and stay local. **Generated flow files
@@ -135,7 +135,7 @@ These go at the top of the README. They are the real adoption cost.
 | A1 | The demo app is recorded with its image unmodified; only the Compose override is added | End-to-end harness in CI |
 | A2 | For the scripted scenario, statement count and SQL prefix per request equal `expected.yaml`; statements of the interval job and the post-response write are not high-confidence | End-to-end harness |
 | A3 | Tables read and written per endpoint equal `expected.yaml`; the seeded GET-that-writes and N+1 appear as findings | End-to-end harness |
-| A4 | No secret value of the demo recording occurs in `inspect` output or in `trowel/behaviour/**` | Search test in CI |
+| A4 | No secret value of the demo recording occurs in `inspect` output or in `legacy-checker/behaviour/**` | Search test in CI |
 | A5 | On one system we did not write: at least 90 % of statements are analysed, at least 95 % of in-window statements are high-confidence, and a manual audit of ten endpoints finds the table lists right for at least nine | Reality-check report (step 18) |
 | A6 | Linux amd64 and arm64 binaries and the Docker image pass the end-to-end harness; macOS and Windows binaries build and pass unit tests | Release pipeline |
 | A7 | A person new to the project reaches the demo map in ten minutes from the README alone | Manual run, recorded in the release notes |
@@ -149,7 +149,7 @@ These go at the top of the README. They are the real adoption cost.
 | A10 | Six seeded regressions (changed status, changed JSON field, missing write, extra write, changed row count, changed written value) each fail at the named step with the expected kind of diff | End-to-end harness |
 | A11 | Three harmless refactors pass: two single-row inserts rewritten as one multi-row insert, reordered JSON keys, update-then-insert rewritten as an upsert | End-to-end harness |
 | A12 | With a wrong snapshot, `calibrate` stops and adds no rule | End-to-end harness |
-| A13 | No secret value occurs in `trowel/flows/**`; replay with a missing secret fails before the first request and lists the names | Search test and unit test |
+| A13 | No secret value occurs in `legacy-checker/flows/**`; replay with a missing secret fails before the first request and lists the names | Search test and unit test |
 | A14 | On one system we did not write: after calibration at least 80 % of generated steps pass replay and every other step is quarantined with a reason | Reality-check report (step 34) |
 | A15 | The demo repository contains a working GitHub Actions workflow that runs replay | CI |
 
@@ -160,7 +160,7 @@ threshold change is recorded in the decision log.
 ## 10. Open-core boundary
 
 Everything in section 6 is Apache-2.0 and stays open, and so will MySQL support. The tool
-sits in the data path of someone's application, so trust requires readable source. Trowel
+sits in the data path of someone's application, so trust requires readable source. Legacy Checker
 sends no telemetry and opens no network connections other than the two upstreams it is
 configured with.
 
@@ -209,6 +209,5 @@ write assertions, the state checksum, the public showcase map.
 
 | Question | Needed by |
 |---|---|
-| Final product and repository name (Trowel is a working name; a conflict check is part of step 1) | Step 1 |
 | May a copy of the pilot system be used, with which data, and who owns a tool built partly in connection with that job? | Before step 1; blocks step 18 |
 | Does the pilot system use TLS to its database, PgBouncer, an ORM, background workers or in-process timers? | Step 7 |
